@@ -1,0 +1,165 @@
+fishesynthe notes
+anything worth doing is worth doing half-decently!! we are just making a little instrument thing
+
+LINKS
+- sonic pi + distance sensor: https://www.youtube.com/watch?v=Kk9KO6Stqp4
+- auto run sonic pi at startup: https://in-thread.sonic-pi.net/t/sonic-pi-for-standalone-installations/225/2
+- touch sensor drums: https://diyelectromusic.wordpress.com/2020/07/19/arduino-piezo-midi-controller/
+- arduino to pi comms: https://roboticsbackend.com/raspberry-pi-arduino-serial-communication/
+- connect rpi to macbook via ethernet: https://medium.com/@tzhenghao/how-to-ssh-into-your-raspberry-pi-with-a-mac-and-ethernet-cable-636a197d055
+- arduino serial plotter: https://learn.adafruit.com/experimenters-guide-for-metro/circ08-using%20the%20arduino%20serial%20plotter
+
+bunch of un-refined sonic pi related links
+- https://in-thread.sonic-pi.net/t/working-with-osc-as-variables/2840/4
+- LOOKS PROMISING https://projects.raspberrypi.org/en/projects/the-big-minecraft-piano/3
+- https://raspberrypi.stackexchange.com/questions/120993/sonic-pi-wont-play-sound-from-remote-python-script
+- PROMISING https://in-thread.sonic-pi.net/t/simple-osc-demo/4388/4
+
+2023 03 24
+- yup yup day beforrrrre
+- DONE get electronics mounted inside fish
+- test all 6 piezos with placeholder notes
+- figure out ambient synth sound sonic pi
+- how to do notes based on a root
+  - root note cycles thru list of root notes. when get to end loop to start
+    - everything is just Ruby, can make and use variables
+  - each entry in root note array maps to entry in dict of the other 5 notes based on it
+    no need for math weirdness
+  - every time the root note is changed: update root note, update other 5 notes
+
+
+2023 03 22
+note
+- ironing out data a bit more...
+  - priority: given a trigger osc message, play a note in sonic pi and tune it up to sound nice
+  - separate osc messages per key
+    - that way can have independent loops going
+    - only send triggers over osc, post-processing on pi. less spam
+      - can do constant send of distance sensor values as stretch goal
+- working! currently set up to only read 2 touch sensors but the pipeline works to the mac
+- now try to get this working on the pi locally...
+  - send osc messages to localhost instead of ip
+  - add sonic pi code to init.rb on pi
+  - run sonic pi without a screen connect
+- init.rb works with basic drum loop, can get sonic pi to launch via cli, can't get sonic pi to launch on boot...
+  - NOTE: will need ability to plug into ethernet on pi, leave cable plugged in and easily available
+
+
+
+2023 03 21
+- send piezo data thru to pi
+- send multiple piezo data thru to pi: every cycle can send some values, that's easy
+- parse data on the pi side
+- getting sonic pi to work; pi is sending osc to macbook
+  - mac ip: either 192.168.150.0 or 192.168.2.1 (i think its the second one, pi can ping it)
+  - seeing the data come thru!! its a bit too fast for sonic pi seems like... 
+    best to do some filtering and just send triggers to sonic pi
+suuuuuper swag, the entire pipeline for button touches is done
+now need to learn a bit about sonic pi n how to fuck with it... 
+- make a patch thing on macbook, where osc messages are triggers to pluck some sort of string thing
+  - rpi python script to send a pluck 2 times per sec: 0 to 100 value of how hard to pluck, random number
+  - take that and make some weird sounding instrument thingy on sonic pi
+  - LATER; also wanna do something to help mess with what key the notes are based on... 
+    maybe an osc could be used to change octave?
+  - sonic pi pseudo code
+    - define a pluck function
+      - reference either a param or some global variable? idk, to pluck a synth
+    - live loop to watch for incoming osc messages
+      - sync with osc message, or whatever you can use to wait for it
+      - call pluck function after synth with latest osc value
+
+    excerpt from promising link
+    live_loop :receive do
+      use_real_time
+      note,duration,vol= sync "/osc*/play"
+      play note,release: duration,amp: vol
+    end
+
+
+2023 03 20
+- connecting direct ethernet to pi with pc
+- play wav now that connected to sp404 to amplify
+- installing alsaaudio
+  sudo apt-get install libasound2-dev
+  sudo pip3 install pyqtgraph
+  sudo pip3 install pyalsaaudio
+- amixer commands were fucking scamming me!!
+  - websites say to run command amixer cset numid=3 n, n = 0, 1 2 for auto, aux or hdmi
+  - this is really setting your audio output to 0!
+  - run just 'amixer' and you will see it
+  - have to set it back to max 
+- aplay command now working. python script with pygame and alsaaudio not working yet
+  - but verified aux jacks are good!
+- arduino to rpi serial comms
+  - arduino: /dev/ttyACM0
+  - okay it's working! easy enough
+    - test_arduino_send_to_rpi.ino
+    - rpi_recieve_arduino_serial.py
+
+
+scp piWavTest.py tanner@raspberrypi.local:~/
+
+2023 03 18
+- physical
+  - joff making a new fish thing
+  - gonna drill holes thru to route touch sensors
+  - still figuring out the enclosure for touch points
+    - need to be obviously interactable, so like a jelly blob might not work
+    - maybe something that looks like a button
+  - task list
+    - need enclosure supplies
+      - foam, hot glue
+        - foam will insulate each piezo a little bit from sensing other touches. 
+          don't want to have one piezo vibrations throwing off the other ones
+    - pick touch points on board, eye point
+    - drill holes for mounting touch sensors
+    - figure out distance sensor mounting
+    - mount rpi, power supply
+    - figure out how we're gonna get audio to weston
+      - thinking use aux port into a mixer, he can adjust volume
+      - 3.5 mm to splitter is cool
+
+- electrical
+  - piezo wiring: piezo, 1 mega ohm resistor in parallel, just direct 
+    - need to order more resistors! have one, color code is brown black green gold (10 x 100 k ohm). may be able to snag from noisebridge
+    - 
+  - ultrasonic sensor wiring
+    - picture taken on iphone today, march 18 2023
+    - echo to gpio pin 27, 7th pin down from the top left of gpio pins
+    - trigger to gpio pin 22, 8th pin down from top left of gpio pins
+    - using 3.3v power, top left of gpio pins
+    - using gnd, 3 down from top right of gpio pins
+  - raspberry pi does not have analog pin read... very unfortunately did not bring it with me today
+    - we can connect arduino to raspberry pi directly via usb. will show up on pi under dev/tty
+
+- software
+  - run python script to intake touch values and generate / send osc data
+  - task list
+    - send piezo data from arduino to raspberry pi over serial
+    - process distance sensor data, send osc messages on pi
+      - need a range of valid distance values mapped to range for vibrato
+      - need to find range expected by sonic pi
+    - process touch sensor data, send trigger osc messages on pi
+      - arduino is basically a glorified adc
+      - processing data to trigger plucks:
+        - we could store the last like 30 or so samples, and then see how much the most 
+          recent incoming value differs from the buffer.
+          actually nevermind, i think we can just do a simple threshold
+    - using cur val osc data in sonic pi to modify vibrato 
+    - using trigger osc data in sonic pi to trigger key presses
+
+for today:
+- get the distance sensor going, ideally can modify a constant tone
+  - DONE look up old wiring diagram
+- start working with raspberry pi and laptop
+  - no internet sharing, able to pin raspberrypi.local. good enough since we only have one
+  - holy fuck the pi is being annoying. reflashed like 4 times
+    - need to enable ssh in rpi flasher. set up username tanner, pw 1423
+  - turned on internet sharing, ssh:
+    ssh tanner@192.168.2.3
+  - without internet sharing, use tanner@raspberrypi.local
+  - sudo apt install ./sonic-pi_4.3.0_1_bullseye.arm64.deb:
+    Note, selecting 'sonic-pi' instead of './sonic-pi_4.3.0_1_bullseye.arm64.deb'
+  - tried to get sonic pi running at startup, seems to be working (saw process in ps -ef) but can't hear basic beat defined in init.rb
+  - tried basic playing wav from talkative and it didnt work
+
